@@ -38,7 +38,7 @@ The ITCH data is sorted by ticker to minimize latency caused by fetching data fr
 
 ## 🔬 Telemetry Observations
 
-* **CPU Warm Up** The spike in average and P95 latencies when processing higher-volume asset classes (less than Company Rank 50) indicates that the CPU experiences a warm-up period.
+* **CPU Warm Up** The spike in latency across all metrics when processing higher-volume asset classes (less than Company Rank 50) indicates that the CPU experiences a warm-up period.
 * **Steady-State Determinism:** When the system is fully warmed up and the instruction cache is hot, the core matching logic achieves a remarkably flatlined median performance of **69-73 CPU cycles** per event.
 * **Cache Topology Limits:** As the engine processes the lower-volume asset classes (approaching Company Rank 190+), minor L3 cache misses and branch predictor rhythm changes occur due to increased memory demands, introducing a step-up in cumulative P95 and P99.9 latencies.
 * **Operating System Jitter:** The isolated spikes observed in the `Max Cycles` telemetry (~760,000 cycles) represent tail-risk anomalies introduced exclusively by OS background interrupts, page faults, and thread scheduler preemption rather than structural code inefficiencies.
