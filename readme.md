@@ -33,7 +33,7 @@ The ITCH data is sorted by ticker to minimize latency caused by fetching data fr
 
 ![Max Cycles](plots/averagetimes_plot_max_cycles.png)
 
-> **Hardware Environment:** 12th Gen Intel(R) Core(TM) i5-1235U @ 2.50 GHz (Turbo Boost Active)
+> **Hardware Environment:** 12th Gen Intel(R) Core(TM) i5-1235U @ 2.50 GHz (High Performance Mode)
 > **OS Platform:** Windows 11 (MSYS2/MinGW-W64)
 
 ## 🔬 Telemetry Observations
