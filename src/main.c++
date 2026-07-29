@@ -1,5 +1,6 @@
 #include <bits/stdc++.h>
 #include <x86intrin.h>
+#include <windows.h>
 using namespace std;
 
 #include "marketmanager.h"
@@ -21,9 +22,42 @@ string trim_ticker(string str) {
     return str;
 }
 
+unsigned long long readTsc() {
+    unsigned int aux = 0;
+    _mm_lfence();
+    unsigned long long cycles = __rdtscp(&aux);
+    _mm_lfence();
+    return cycles;
+}
+
+unsigned long long getTscOverhead() {
+    unsigned long long min_overhead = ~0ULL;
+    const int iterations = 10000;
+
+    for (int i = 0; i < iterations; ++i) {
+        unsigned long long start = readTsc();
+        unsigned long long end = readTsc();
+        
+        unsigned long long overhead = end - start;
+        
+        if (overhead < min_overhead) {
+            min_overhead = overhead;
+        }
+    }
+    return min_overhead;
+}
+
 int main() {
     ios_base::sync_with_stdio(false);
     cin.tie(nullptr);
+
+    DWORD_PTR mask = 1ULL << 1;
+    if (!SetProcessAffinityMask(GetCurrentProcess(), mask)) {
+        cerr << "Warning: failed to pin process to CPU core 1" << endl;
+    }
+    if (!SetThreadAffinityMask(GetCurrentThread(), mask)) {
+        cerr << "Warning: failed to pin main thread to CPU core 1" << endl;
+    }
 
     const int MAX_COMPANIES_LIMIT = 500;
     string filePath = "./src/data.txt";
@@ -154,6 +188,8 @@ int main() {
         return (a.locationCode == b.locationCode) ? (a.orderId < b.orderId) : (a.locationCode < b.locationCode);
     });
 
+    long long unsigned int overhead = getTscOverhead();
+
     ofstream csvOutput("averagetimes.csv", ios::trunc);
     csvOutput << "TestedCompaniesAmount,RunningAvgNs,RunningAvgThroughput_MMsgSec,CumulMedianCycles,CumulP95Cycles,CumulP999Cycles,CumulMaxCycles\n";
 
@@ -193,11 +229,10 @@ int main() {
             MarketEvent isolatedEvent = globalEvents[i];
             isolatedEvent.locationCode = 0; 
             
-            uint64_t startTsc = __rdtsc();
-            marketManager.processEvent(isolatedEvent);
-            uint64_t endTsc = __rdtsc();
-            
-            uint64_t cycles = endTsc - startTsc;
+            uint64_t cycles = marketManager.processEvent(isolatedEvent);
+
+            cycles = (cycles > overhead) ? cycles - overhead : 0;
+
             runningCyclesTracker.push_back(cycles);
             
             if (cycles > globalMaxCycles) {
@@ -220,7 +255,7 @@ int main() {
         double runningAvgThroughput = runningTotalThroughput / validTestsCount;
 
         size_t totalProcessed = runningCyclesTracker.size();
-        vector<uint64_t> tempCycles = runningCyclesTracker; // Copy to avoid mutating the master timeline
+        vector<uint64_t> tempCycles = runningCyclesTracker;
         
         size_t medIdx  = totalProcessed / 2;
         size_t p95Idx  = static_cast<size_t>(totalProcessed * 0.95);

@@ -1,6 +1,12 @@
 import argparse
 import csv
+import os
 from pathlib import Path
+
+import matplotlib
+
+if os.environ.get("DISPLAY", "") == "" and os.name == "nt":
+    matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 

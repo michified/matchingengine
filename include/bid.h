@@ -12,6 +12,8 @@ private:
     vector<Order> orders;
     vector<int> nextPrices;
     vector<int> prevPrices;
+    int lastInsertedPrice = INT_MIN;
+    int lastInsertedNextPrice = INT_MIN;
 
     void removePriceLevel(int price) {
         int prevPrice = prevPrices[price];
@@ -42,6 +44,23 @@ public:
         nextPrices.resize(maxPrice + 1, INT_MIN);
     }
 
+    void insertPriceLevel(int price, int startPrice) {
+        int currentPrice = startPrice;
+
+        while (nextPrices[currentPrice] != INT_MIN and nextPrices[currentPrice] > price) {
+            currentPrice = nextPrices[currentPrice];
+        }
+
+        int oldNext = nextPrices[currentPrice];
+        nextPrices[price] = oldNext;
+        prevPrices[price] = currentPrice;
+
+        if (oldNext != INT_MIN) {
+            prevPrices[oldNext] = price;
+        }
+        nextPrices[currentPrice] = price;
+    }
+
     void addOrder(int orderId, int qty, int price) {
         orders[orderId] = {orderId, qty, price, -1, -1};
         PriceLevel& level = priceLevels[price];
@@ -50,28 +69,29 @@ public:
             level.firstOrderId = orderId;
             level.lastOrderId = orderId;
 
-            if (price > bestBidPrice) {
+            if (bestBidPrice == INT_MIN) {
+                bestBidPrice = price;
+                nextPrices[price] = INT_MIN;
+                prevPrices[price] = INT_MIN;
+            } else if (price > bestBidPrice) {
                 nextPrices[price] = bestBidPrice;
+                prevPrices[price] = INT_MIN;
                 if (bestBidPrice != INT_MIN) {
                     prevPrices[bestBidPrice] = price;
                 }
                 bestBidPrice = price;
             } else {
-                int currentPrice = bestBidPrice;
+                int startPrice = bestBidPrice;
 
-                while (nextPrices[currentPrice] != INT_MIN and nextPrices[currentPrice] > price) {
-                    currentPrice = nextPrices[currentPrice];
+                if (lastInsertedPrice != INT_MIN && lastInsertedPrice > price && lastInsertedNextPrice != INT_MIN && lastInsertedNextPrice > price) {
+                    startPrice = lastInsertedPrice;
                 }
 
-                int oldNext = nextPrices[currentPrice];
-                nextPrices[price] = oldNext;
-                prevPrices[price] = currentPrice;
-                
-                if (oldNext != INT_MIN) {
-                    prevPrices[oldNext] = price;
-                }
-                nextPrices[currentPrice] = price;
+                insertPriceLevel(price, startPrice);
             }
+
+            lastInsertedPrice = price;
+            lastInsertedNextPrice = nextPrices[price];
         } else {
             int lastId = level.lastOrderId;
             orders[lastId].nextOrderId = orderId;

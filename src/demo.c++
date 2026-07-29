@@ -1,4 +1,5 @@
 #include <bits/stdc++.h>
+#include <windows.h>
 using namespace std;
 
 #include "marketmanager.h"
@@ -23,6 +24,14 @@ string trim_ticker(string str) {
 int main() {
     const int numCompanies = 10; // default
     ios_base::sync_with_stdio(false);
+
+    DWORD_PTR mask = 1ULL << 1;
+    if (!SetProcessAffinityMask(GetCurrentProcess(), mask)) {
+        cerr << "Warning: failed to pin process to CPU core 1" << endl;
+    }
+    if (!SetThreadAffinityMask(GetCurrentThread(), mask)) {
+        cerr << "Warning: failed to pin main thread to CPU core 1" << endl;
+    }
     
     string filePath = "./src/data.txt";
     ifstream input(filePath);

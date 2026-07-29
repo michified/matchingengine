@@ -10,16 +10,16 @@ Traditional order books rely on dynamic structures like `std::map` or `std::list
 
 * **Flat Memory Pools:** All orders (`vector<Order> orders`) and price levels (`vector<PriceLevel> priceLevels`) reside in fixed-size, contiguous blocks of RAM initialized during boot.
 * **Intrusive Layout:** Instead of raw or smart pointers, orders are chained together using standard integer indices (`prevOrderId`, `nextOrderId`) that point directly into the pre-allocated flat arrays.
-* **O(1) Price Level Management:** Active price levels are tracked via dense `nextPrices` and `prevPrices` lookup arrays. This allows the matching loop to instantly skip empty price gaps, maintaining speed even during sparse market conditions.
-* **O(1) Order Lifecycle Operations:** Order IDs map 1:1 with their internal array index. This enables instant $O(1)$ lookups, insertions, and cancellations. Because it is an intrusive doubly-linked list, unlinking a dead order or purging an empty price level is a pure $O(1)$ pointer/index swap, entirely avoiding list traversals.
+* **Price Level Management:** Active price levels are tracked via dense `nextPrices` and `prevPrices` lookup arrays. This allows the matching loop to instantly skip empty price gaps, maintaining speed even during sparse market conditions. Additionally, recent order insertions are cached to avoid excessive looping on the hot path.
+* **O(1) Order Lifecycle Operations:** Order IDs map 1:1 with their internal array index. This enables instant $O(1)$ lookups, insertions, and cancellations. Because it is an intrusive doubly-linked list, unlinking a dead order or purging an empty price level is an $O(1)$ pointer/index swap, entirely avoiding list traversals.
 
 ## 📊 Performance & Benchmarks
 
-Performance telemetry is captured directly via hardware CPU timestamp counters using the `__rdtsc()` intrinsic. 
+Performance telemetry is captured directly via the hardware timestamp counter using a fenced `__rdtscp()`-based path with memory barriers around each measurement. This makes the reported cycle counts more stable than a naive `__rdtsc()` read and helps reduce noise from instruction reordering. The benchmark also performs a lightweight calibration step to estimate the overhead of the measurement path and subtracts it from the raw reading, yielding a closer estimate of the true event cost.
 
-Benchmarks are executed using real, historical market data parsed from raw **NASDAQ ITCH** feeds. To protect against compiler over-optimization (such as Dead Code Elimination), inline assembly barriers (`asm volatile` memory clobbers) are embedded directly within the timing loops. This forces the CPU to serialize memory operations and flush register states back to the L1 data cache before the clock stops, capturing a true, un-optimized representation of execution latency.
+Benchmarks are executed using real, historical market data parsed from raw **NASDAQ ITCH** feeds. To protect against compiler over-optimization (such as Dead Code Elimination), inline assembly barriers (`asm volatile` memory clobbers) are embedded directly within the timing loops.
 
-The ITCH data is sorted by ticker to minimize latency caused by fetching data from RAM.
+To reduce scheduler noise and improve reproducibility, the benchmark pins the process and main thread to CPU core 1 on supported Windows systems. The ITCH data is sorted by ticker to minimize latency caused by fetching data from RAM.
 
 ## 📈 Benchmark Plots
 
@@ -38,10 +38,10 @@ The ITCH data is sorted by ticker to minimize latency caused by fetching data fr
 
 ## 🔬 Telemetry Observations
 
-* **CPU Warm Up** The spike in latency across all metrics when processing higher-volume asset classes (less than Company Rank 50) indicates that the CPU experiences a warm-up period.
-* **Steady-State Determinism:** When the system is fully warmed up and the instruction cache is hot, the core matching logic achieves a remarkably flatlined median performance of **69-73 CPU cycles** per event.
-* **Cache Topology Limits:** As the engine processes the lower-volume asset classes (approaching Company Rank 190+), minor L3 cache misses and branch predictor rhythm changes occur due to increased memory demands, introducing a step-up in cumulative P95 and P99.9 latencies.
-* **Operating System Jitter:** The isolated spikes observed in the `Max Cycles` telemetry (~760,000 cycles) represent tail-risk anomalies introduced exclusively by OS background interrupts, page faults, and thread scheduler preemption rather than structural code inefficiencies.
+* **CPU Warm Up** The spike in latency across all metrics when processing higher-volume asset classes (less than Company Rank 30) indicates that the CPU experiences a warm-up period.
+* **Steady-State Determinism:** When the system is fully warmed up and the instruction cache is hot, the core matching logic achieves a remarkably flatlined median performance.
+* **Cache Topology Limits:** As the engine processes the lower-volume asset classes (approaching Company Rank 190+), minor L3 cache misses and branch predictor rhythm changes occur due to increased memory demands, introducing a step-up in cumulative P99.9 latencies.
+* **Operating System Jitter:** The isolated spikes observed in the `Max Cycles` telemetry still reflect tail-risk anomalies introduced by OS background interrupts, page faults, and thread scheduler preemption rather than structural code inefficiencies.
 
 ## ✅ Algorithmic Correctness & Invariants
 

@@ -20,6 +20,14 @@ public:
         minPrices.reserve(numCompanies);
     }
 
+    unsigned long long readTsc() const {
+        unsigned int aux = 0;
+        _mm_lfence();
+        unsigned long long cycles = __rdtscp(&aux);
+        _mm_lfence();
+        return cycles;
+    }
+
     void initializeCompany(int companyId, int maxPrice, int minPrice, int maxId) {
         if (companyId != (int)companies.size()) return;
         companies.push_back(OrderHandler(maxPrice - minPrice + 1, maxId));
@@ -28,7 +36,7 @@ public:
 
     unsigned long long processEvent(MarketEvent& event) { 
         OrderHandler& orderHandler = companies[event.locationCode];
-        unsigned long long startTime = __rdtsc();
+        unsigned long long startTime = readTsc();
 
         switch (event.type) {
             case 'B':
@@ -42,7 +50,7 @@ public:
                 break;
         }
 
-        unsigned long long endTime = __rdtsc();
+        unsigned long long endTime = readTsc();
         return endTime - startTime;
     }
 
