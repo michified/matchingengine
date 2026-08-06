@@ -8,6 +8,8 @@ SRCDIR   := src
 SRCS     := $(SRCDIR)/main.c++
 OBJS     := $(SRCS:.c++=.o)
 
+RM := C:/msys64/usr/bin/rm.exe -f
+
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
@@ -16,11 +18,7 @@ $(TARGET): $(OBJS)
 %.o: %.c++
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-WIN_OBJS := $(subst /,\\,$(OBJS))
-WIN_TARGET := $(subst /,\\,$(TARGET))
-
 clean:
-	cmd /c "if exist $(WIN_OBJS) del /Q /F $(WIN_OBJS)"
-	cmd /c "if exist $(WIN_TARGET) del /Q /F $(WIN_TARGET)"
+	$(RM) $(OBJS) $(TARGET)
 
 .PHONY: all clean
